@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  backend:
+    image: vue-register-app-backend
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend/:/usr/src/app
+    links:
+      - database
+
+  database:
+    image: mongo
+    environment:
+      MONGO_INITDB_DATABASE: vuecrud
+    ports:
+      - "27017:27017"
+
+  frontend:
+    image: vue-register-app
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/usr/src/app
