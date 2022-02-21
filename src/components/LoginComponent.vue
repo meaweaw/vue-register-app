@@ -5,12 +5,11 @@
         <div class="col-12 col-md-8 col-lg-6 col-xl-5">
           <div
             class="card text-white"
-            style="border-radius: 1rem;background-color: rgba(255, 255, 255, 0.5);"
+            style="border-radius: 1rem; background-color: rgba(255, 255, 255, 0.5);"
           >
             <div class="card-body p-5 text-center">
               <div class="mb-md-5 mt-md-4">
                 <h3 class="fw-bold mb-2 text-muted text-uppercase">Login</h3>
-
                 <div class="mt-2">
                   <it-input
                     labelTop="Username"
@@ -36,8 +35,8 @@
                     block
                     type="primary"
                     @click="getLogin"
-                    :loading="btnloading"
-                    :disabled="btndisabled"
+                    :loading="$store.state.btnloading"
+                    :disabled="$store.state.btndisabled"
                     >LOGIN</it-button
                   >
                 </div>
@@ -59,50 +58,36 @@
 </template>
 
 <script>
-const API_URL = "http://localhost:4000/api/";
-
-import axios from "axios";
-
 export default {
   data() {
     return {
       username: "",
       password: "",
-      btnloading: false,
-      btndisabled: false,
     };
   },
   methods: {
     async getLogin() {
       if (this.username == "" || this.password == "") return;
 
-      this.btnloading = true;
-      this.btndisabled = true;
-      await axios
-        .post(API_URL + "check-user", {
+      this.$store.commit('setLoading', true);
+      await this.$axios.post("check-user", {
           username: this.username,
           password: this.password,
         })
         .then((response) => {
           if (response.data.status) {
-            sessionStorage.setItem(
-              "username",
-              JSON.stringify(response.data.data)
-            );
-
-            sessionStorage.setItem(
-              "accessToken",
-              response.data.accessToken
-            );
-
             this.$Notification.success({
               duration: 3000,
               title: "Login",
               text: "Login Success !!",
             });
+
+            this.$store.commit('setUser', response.data.data);
+            this.$store.commit('setAccessToken', response.data.accessToken);
+            this.$axios.defaults.headers.common['authorization'] = `JWT ${this.$store.state.accessToken}`;
             setTimeout(() => {
               this.$router.push("/profile");
-            }, 1000);
+            }, 500);
           } else {
             this.$Notification.warning({
               duration: 3000,
@@ -120,13 +105,11 @@ export default {
           });
         });
 
-      this.btnloading = false;
-      this.btndisabled = false;
+      this.$store.commit('setLoading', false);
     },
   },
   created() {
-    let checkUsername = sessionStorage.getItem("username");
-    if (!["", null, undefined].includes(checkUsername)) {
+    if (this.$store.state.accessToken != '') {
       this.$router.push("/profile");
     }
   },

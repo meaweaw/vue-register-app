@@ -5,25 +5,20 @@
         <div class="col-12 col-md-8 col-lg-6 col-xl-5">
           <div
             class="card text-white"
-            style="
-              border-radius: 1rem;
-              background-color: rgba(255, 255, 255, 0.5);
-            "
+            style="border-radius: 1rem; background-color: rgba(255, 255, 255, 0.5);"
           >
-            <div class="card-body p-5 text-center">
+            <div class="card-body p-5">
               <div class="mb-md-5 mt-md-4">
-                <h3 class="fw-bold mb-2 text-muted text-uppercase">Profile</h3>
-                <div class="image">
+                <h3 class="fw-bold mb-2 text-muted text-uppercase text-center">Profile</h3>
+                <div class="text-center image">
                   <img
-                    :src="user.profile"
+                    :src="($store.state.user.profile)?$store.state.user.profile:$store.state.image"
                     class="img-lg rounded-circle"
                     height="100"
                     width="100"
                   />
 
-                  <div
-                    class="mt-2 d-flex justify-content-center align-items-center"
-                  >
+                  <div class="mt-2 d-flex justify-content-center align-items-center">
                     <label
                       for="files"
                       style="cursor: pointer"
@@ -41,29 +36,21 @@
                   </div>
                 </div>
 
-                <h5 class="text-capitalize text-dark mt-2">
-                  {{ user.firstname }} {{ user.lastname }}
+                <h5 class="text-center text-capitalize text-dark mt-2">
+                  {{ $store.state.user.firstname }} {{ $store.state.user.lastname }}
                 </h5>
-                <h6 class="text-capitalize text-muted">
-                  @{{ user.firstname }}
+                <h6 class="text-center text-capitalize text-muted">
+                  @{{ $store.state.user.firstname }}
                 </h6>
-                <span class="badge bg-secondary">Joined {{ user.joined }}</span>
+                <div class="text-center">
+                  <span class="badge bg-secondary">Joined {{ moment($store.state.user.createdAt).format("ll") }}</span>
+                </div>
 
-                <div
-                  class="gap-3 mt-2 icons d-flex flex-row justify-content-center align-items-center"
-                >
-                  <span class="text-twitter"
-                    ><i class="fa fa-twitter"></i
-                  ></span>
-                  <span class="text-facebook"
-                    ><i class="fa fa-facebook-f"></i
-                  ></span>
-                  <span class="text-instagram"
-                    ><i class="fa fa-instagram"></i
-                  ></span>
-                  <span class="text-linkedin"
-                    ><i class="fa fa-linkedin"></i
-                  ></span>
+                <div class="gap-3 mt-2 icons d-flex flex-row justify-content-center align-items-center">
+                  <span class="text-twitter"><i class="fa fa-twitter"></i></span>
+                  <span class="text-facebook"><i class="fa fa-facebook-f"></i></span>
+                  <span class="text-instagram"><i class="fa fa-instagram"></i></span>
+                  <span class="text-linkedin"><i class="fa fa-linkedin"></i></span>
                 </div>
 
                 <div class="mt-4">
@@ -72,9 +59,9 @@
                     prefix-icon="lock"
                     type="password"
                     placeholder="Must have at least 6 characters"
-                    v-model="user.password"
-                    :status="v$.user.password.$invalid ? 'danger' : 'success'"
-                    :message="v$.user.password.$invalid ? v$.user.password.$silentErrors[0].$message : ''"
+                    v-model="newPassword"
+                    :status="v$.newPassword.$invalid ? 'danger' : 'success'"
+                    :message="v$.newPassword.$invalid ? v$.newPassword.$silentErrors[0].$message : ''"
                     @keyup.enter="changePassword"
                   />
                 </div>
@@ -90,9 +77,7 @@
                 </div>
 
                 <div>
-                  <it-button block type="danger" @click="logOut"
-                    >Log Out</it-button
-                  >
+                  <it-button block type="danger" @click="logOut">Log Out</it-button>
                 </div>
               </div>
             </div>
@@ -104,25 +89,21 @@
 </template>
 
 <script>
-import moment from "moment";
-import axios from "axios";
 import useVuelidate from "@vuelidate/core";
 import { required, minLength, helpers } from "@vuelidate/validators";
-
-const API_URL = "http://localhost:4000/api/";
+import useValidateChar from "../composables/useValidateChar";
 
 export default {
+  setup() {
+    const { checkSeqChar } = useValidateChar()
+    return {
+      v$: useVuelidate(),
+      checkSeqChar,
+    }
+  },
   data() {
     return {
-      user: {
-        _id: "",
-        firstname: "",
-        lastname: "",
-        username: "",
-        password: "",
-        profile: "https://img.icons8.com/bubbles/100/000000/administrator-male.png",
-        joined: "",
-      },
+      newPassword: "",
     };
   },
   methods: {
@@ -134,31 +115,18 @@ export default {
         const reader = new FileReader();
         reader.readAsDataURL(e.target.files[0]);
         reader.onload = (e) => {
-          this.user.profile = e.target.result;
+          this.$store.commit('setUserProfile', e.target.result);
           this.changeProfile();
         };
       }
     },
     async changeProfile() {
-      await axios
-        .post(
-          API_URL + "update-user",
-          {
-            id: this.user._id,
-            profile: this.user.profile,
-          },
-          {
-            headers: {
-              authorization: `JWT ${sessionStorage.getItem("accessToken")}`,
-            },
-          }
-        )
+      await this.$axios.post("update-user", {
+          id: this.$store.state.user._id,
+          profile: this.$store.state.user.profile,
+        })
         .then((response) => {
           if (response.data.status) {
-            let session = JSON.parse(sessionStorage.getItem("username"));
-            session.profile = this.user.profile;
-            sessionStorage.setItem("username", JSON.stringify(session));
-
             this.$Notification.success({
               duration: 3000,
               title: "Edit Profile",
@@ -185,19 +153,10 @@ export default {
         return;
       }
 
-      await axios
-        .post(
-          API_URL + "change-password",
-          {
-            username: this.user.username,
-            password: this.user.password,
-          },
-          {
-            headers: {
-              authorization: `JWT ${sessionStorage.getItem("accessToken")}`,
-            },
-          }
-        )
+      await this.$axios.post("change-password", {
+          username: this.$store.state.user.username,
+          password: this.newPassword,
+        })
         .then((response) => {
           if (response.data.status) {
             this.$Notification.success({
@@ -206,7 +165,7 @@ export default {
               text: "Change Password Success !!",
             });
 
-            this.user.password = "";
+            this.newPassword = "";
           } else {
             this.$Notification.warning({
               duration: 3000,
@@ -225,51 +184,24 @@ export default {
         });
     },
     logOut() {
-      sessionStorage.removeItem("username");
+      this.$store.commit("logOut");
       this.$router.push("/");
     },
-    checkSeqChar(value) {
-      // Check for sequential numerical characters
-      for (const key in value) {
-        if (+value[+key+1] == +value[key]+1 && +value[+key+2] == +value[key]+2) return false;
-      }
-
-      // Check for sequential alphabetical characters
-      for (const key in value) {
-        if (String.fromCharCode(value.charCodeAt(key)+1) == value[+key+1] && String.fromCharCode(value.charCodeAt(key)+2) == value[+key+2]) return false;
-      }
-
-      return true;
-    }
   },
   created() {
-    let checkUsername = JSON.parse(sessionStorage.getItem("username"));
-    if (["", null, undefined].includes(checkUsername)) {
+    if (this.$store.state.accessToken == '') {
       this.$router.push("/");
-    } else {
-      this.user._id = checkUsername._id;
-      this.user.firstname = checkUsername.firstname;
-      this.user.lastname = checkUsername.lastname;
-      this.user.username = checkUsername.username;
-      this.user.joined = moment(checkUsername.createdAt).format("ll");
-
-      if (checkUsername.profile) {
-        this.user.profile = checkUsername.profile;
-      }
     }
   },
   validations() {
     return {
-      user: {
-        password: {
-          required,
-          checkSeqChar: helpers.withMessage('Password must not contain 3 sequential letters and/or numbers.', this.checkSeqChar),
-          minLength: minLength(6),
-        },
+      newPassword: {
+        required,
+        checkSeqChar: helpers.withMessage('Password must not contain 3 sequential letters and/or numbers.', this.checkSeqChar),
+        minLength: minLength(6),
       },
     };
   },
-  setup: () => ({ v$: useVuelidate() }),
 };
 </script>
 
